@@ -8,7 +8,7 @@ const pool = new Pool({
   host: 'localhost',
   database: 'lightbnb'
 });
-pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => {})
+
 
 /**
  * Get a single user from the database given their email.
@@ -73,7 +73,7 @@ exports.getAllReservations = getAllReservations;
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
- const getAllProperties = (options, limit = 10) => {
+ const getAllProperties = (options, limit) => {
   return pool
     .query(`SELECT * FROM properties LIMIT $1`, [limit])
     .then((result) => {
