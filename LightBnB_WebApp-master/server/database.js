@@ -93,8 +93,60 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
  const getAllProperties = (options, limit = 10) => {
+  let queryParams = [];
+  let queryString = `SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id`;
+
+  for (const key in options) {
+    if (options[key]) {
+      
+      if (!queryString.includes("WHERE")) {
+        //add in WHERE clause if options is not empty, and WHERE is not in query yet
+        queryString += " WHERE";
+      } else if (key === "minimum_rating") { 
+        //if options contains a range for rating, we need to use HAVING, and GROUP BY must come before that
+        queryString += " GROUP BY properties.id HAVING";
+      } else {
+        // other cases, we add AND to add the new condition after the WHERE clause has been added
+        queryString += " AND";
+      }
+
+      //different key will have a different query as condition
+      switch(key) {
+        case "city":
+          queryParams.push(`%${options.city}`);
+          queryString += ` city LIKE $${queryParams.length}`;
+          break;
+        case "owner_id":
+          queryParams.push(`${options.owner_id}`);
+          queryString += ` owner_id = $${queryParams.length}`;
+          break;
+        case "minimum_price_per_night":
+          queryParams.push(`${options.minimum_price_per_night}`);
+          queryString += ` cost_per_night >= $${queryParams.length}`;
+          break;
+        case "maximum_price_per_night":
+          queryParams.push(`${options.maximum_price_per_night}`);
+          queryString += ` cost_per_night <= $${queryParams.length}`;
+          break;
+        case "minimum_rating":
+          queryParams.push(`${options.minimum_rating}`);
+          queryString += ` avg(property_reviews.rating) >= $${queryParams.length}`;
+          break;
+      }
+    }
+  }
+  // if we don't have rating in options, we need to add in the group by query
+  if(!options.minimum_rating) queryString += " GROUP BY properties.id";
+
+  queryParams.push(`${limit}`);
+  queryString += ` ORDER BY cost_per_night
+  LIMIT $${queryParams.length};`;
+
+  //returning promise object
   return pool
-    .query(`SELECT * FROM properties LIMIT $1`, [limit])
+    .query(queryString, queryParams)
     .then((result) => {
       console.log(result.rows);
       return result.rows;
